@@ -1,0 +1,15 @@
+{
+  "device": "Tesla T4",
+  "jor_iters_512": 150654,
+  "rbsor_iters_512": 1040,
+  "speedup_iters_512": 144.9,
+  "jor_error_512": 5.29,
+  "rbsor_error_512": 0.0034,
+  "jor_ms_1024": 56922.0,
+  "rbsor_ms_1024": 412.1,
+  "speedup_time_1024": 138.1,
+  "gmg_ms_1025": 8.35,
+  "gmg_speedup_1025": 53.0,
+  "gmg_cycles_all": 3,
+  "gmg_error_1025": 4.5e-07
+}

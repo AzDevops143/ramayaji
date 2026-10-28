@@ -1,0 +1,180 @@
+name: GPU Heat Diffusion CI Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================================================
+  # Job 1: Workspace & Code Integrity Validation
+  # ============================================================================
+  validate-workspace:
+    name: 1. Workspace & Code Integrity Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Verify Notebook JSON Integrity
+        run: |
+          python -c "
+          import json, os
+          assert os.path.exists('G25ait2026_final.ipynb'), 'Missing notebook file'
+          with open('G25ait2026_final.ipynb', 'r', encoding='utf-8') as f:
+              nb = json.load(f)
+          print('Notebook parsed successfully. Total cells:', len(nb.get('cells', [])))
+          "
+
+      - name: Check Required Files
+        run: |
+          for f in Dockerfile Makefile .dockerignore heat2d.cu gmg.cu README.md G25ait2026_IEEE_report_final.pdf; do
+            if [ ! -f "$f" ]; then
+              echo "Error: Required file $f is missing" && exit 1
+            fi
+            echo "Found $f"
+          done
+
+  # ============================================================================
+  # Job 2: Multi-GPU Docker Build & CUDA Compilation
+  # ============================================================================
+  docker-build-and-compile:
+    name: 2. Docker Build & CUDA Compilation
+    runs-on: ubuntu-latest
+    needs: validate-workspace
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build CUDA Docker Image with Multi-Architecture Support
+        run: |
+          echo "Building Docker image with nvcc compiling for sm_75, sm_80, sm_86, sm_89, sm_90..."
+          docker build -t gpu-heat-diffusion:latest .
+
+      - name: Test Container Initialization & Binary Verification
+        run: |
+          echo "Verifying GMG solver inside container..."
+          docker run --rm gpu-heat-diffusion:latest ./gmg -h || true
+          docker run --rm gpu-heat-diffusion:latest ./gmg -n 65 -e 1e-4
+
+          echo "Verifying JOR / RB-SOR solver inside container..."
+          docker run --rm gpu-heat-diffusion:latest ./heat2d -h || true
+          docker run --rm gpu-heat-diffusion:latest ./heat2d -n 37 -e 1e-4
+
+      - name: Extract Compiled Linux Binaries from Container
+        run: |
+          mkdir -p bin_output
+          CONTAINER_ID=$(docker create gpu-heat-diffusion:latest)
+          docker cp $CONTAINER_ID:/workspace/heat2d bin_output/heat2d
+          docker cp $CONTAINER_ID:/workspace/gmg bin_output/gmg
+          docker rm $CONTAINER_ID
+          chmod +x bin_output/*
+          ls -la bin_output/
+
+      - name: Stash Compiled Binaries for Artifact Job
+        uses: actions/upload-artifact@v7
+        with:
+          name: compiled-cuda-binaries
+          path: bin_output/
+          retention-days: 1
+
+  # ============================================================================
+  # Job 3: Dedicated Package & Upload Downloadable Artifacts Job
+  # ============================================================================
+  package-and-upload-artifacts:
+    name: 3. Package & Upload Downloadable Artifacts
+    runs-on: ubuntu-latest
+    needs: [validate-workspace, docker-build-and-compile]
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python for Report Generation
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install Jupyter and nbconvert
+        run: |
+          pip install --no-cache-dir jupyter nbconvert
+
+      - name: Download Compiled CUDA Binaries
+        uses: actions/download-artifact@v8
+        with:
+          name: compiled-cuda-binaries
+          path: dist/1_source_and_binaries/bin/
+
+      - name: Package Distribution Bundle
+        run: |
+          echo "Assembling distribution package..."
+
+          # Source code (compiled binaries were downloaded into bin/ above)
+          mkdir -p dist/1_source_and_binaries/src
+          cp heat2d.cu gmg.cu make_assets.py make_gmg_assets.py Makefile dist/1_source_and_binaries/src/
+
+          # Measured benchmark data (data/ and gdata/)
+          mkdir -p dist/2_benchmark_data
+          cp -r data/ gdata/ dist/2_benchmark_data/
+
+          # Figures
+          mkdir -p dist/3_figures
+          cp assets/*.png dist/3_figures/
+
+          # LaTeX tables and summary numbers
+          mkdir -p dist/4_latex_tables_and_json
+          cp assets/*.tex assets/*.json dist/4_latex_tables_and_json/
+
+          # Additional: Standalone Interactive HTML Report & Documentation
+          mkdir -p dist/reports dist/docs
+          jupyter nbconvert --to html G25ait2026_final.ipynb --output dist/reports/G25ait2026_interactive_report.html
+          if [ -f "G25ait2026_IEEE_report_final.pdf" ]; then
+            cp "G25ait2026_IEEE_report_final.pdf" dist/docs/
+          fi
+          cp README.md dist/
+
+          # Generate Build Manifest
+          cat <<EOF > dist/BUILD_INFO.txt
+          ==============================================================================
+          GPU-Accelerated 2D Heat Diffusion Solver - Complete Distribution Bundle
+          ==============================================================================
+          Commit SHA    : ${{ github.sha }}
+          Branch        : ${{ github.ref_name }}
+          Built By      : GitHub Actions Automated Pipeline
+          CUDA Version  : CUDA 12.6.3
+          Target GPUs   : sm_75, sm_80, sm_86, sm_89, sm_90, compute_75
+          
+          Artifact Structure:
+            1_source_and_binaries/      -> .cu / .py sources, Makefile and compiled binaries
+            2_benchmark_data/           -> data/ and gdata/ measured CSVs
+            3_figures/                  -> All 13 publication PNG plots
+            4_latex_tables_and_json/    -> LaTeX tables and summary numbers
+            reports/                    -> Standalone HTML export of the notebook
+            docs/                       -> IEEE report (PDF)
+          ==============================================================================
+          EOF
+
+          chmod +x dist/1_source_and_binaries/bin/* || true
+          echo "Package structure assembled successfully:"
+          ls -laR dist/
+
+      - name: Publish Final Downloadable Artifacts ZIP
+        uses: actions/upload-artifact@v7
+        with:
+          name: gpu-heat-diffusion-complete-artifacts
+          path: dist/
+          retention-days: 30
+          if-no-files-found: error

@@ -1,0 +1,16 @@
+\begin{table}[t]
+\centering
+\caption{CYCLES TO $\max |\Delta u| < 10^{-4}$ (FLOAT64 UNLESS NOTED) AND CONVERGENCE FACTOR $\rho$ AT $N = 1025$}
+\label{tab:gmg_cycles}
+\begin{tabular}{lrrrrr}
+\hline
+Variant & 129 & 513 & 1025 & 4097 & $\rho$ \\
+\hline
+V(1,1)+FMG           & 4 & 4 & 4   & 4   & 0.060 \\
+V(2,2)+FMG           & 3 & 3 & 3   & 3   & 0.036 \\
+W(2,2)+FMG           & 3 & 3 & 3   & 3   & 0.031 \\
+V(2,2)               & 6 & 6 & 6   & 6   & 0.043 \\
+V(2,2)+FMG, float32  & 3 & 58 & 400$^\dagger$ & 400$^\dagger$ & -- \\
+\hline
+\end{tabular}
+\end{table}

@@ -1,0 +1,19 @@
+\begin{table}[t]
+\centering
+\caption{ITERATIONS TO $\varepsilon = 10^{-4}$ (FLOAT64) AND MAX-NORM ERROR VS. THE CONVERGED DISCRETE SOLUTION ($^\circ$C)}
+\label{tab:iters}
+\begin{tabular}{rrrrrr}
+\hline
+\multicolumn{1}{c}{} & \multicolumn{3}{c}{Iterations to $\varepsilon = 10^{-4}$} & \multicolumn{2}{c}{Max error vs. exact discrete} \\
+$N$ & JOR & RB-GS & RB-SOR & JOR & RB-SOR \\
+\hline
+64   & 5,655   & 3,107   & 144   & 8.0e-2 & 8.6e-4 \\
+128  & 18,404  & 10,336  & 276   & 0.33   & 1.6e-3 \\
+256  & 55,830  & 32,483  & 531   & 1.32   & 2.7e-3 \\
+512  & 150,654 & 93,660  & 1,040 & 5.29   & 3.4e-3 \\
+1024 & 311,637 & 228,375 & 2,035 & 21.01  & 4.3e-3 \\
+2048 & --      & --      & 4,014 & --     & 5.2e-3 \\
+4096 & --      & --      & 7,869 & --     & 6.8e-3 \\
+\hline
+\end{tabular}
+\end{table}

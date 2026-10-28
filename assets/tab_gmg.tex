@@ -1,0 +1,18 @@
+\begin{table}[t]
+\centering
+\caption{GPU TIME TO $\varepsilon = 10^{-4}$, FLOAT64: RB-SOR VS. GMG V(2,2)+FMG WITH CUDA GRAPH}
+\label{tab:gmg}
+\begin{tabular}{rrrrrrr}
+\hline
+\multicolumn{1}{c}{} & \multicolumn{2}{c}{RB-SOR} & \multicolumn{4}{c}{GMG V(2,2)+FMG} \\
+$N$ & iter. & ms & cycles & levels & ms & speed-up \\
+\hline
+129  & 278   & 3.2      & 3 & 7  & 1.54   & 2$\times$   \\
+257  & 533   & 8.4      & 3 & 8  & 1.94   & 4$\times$   \\
+513  & 1,042 & 52.5     & 3 & 9  & 2.99   & 18$\times$  \\
+1025 & 2,033 & 442.7    & 3 & 10 & 8.35   & 53$\times$  \\
+2049 & 4,015 & 3,351.8  & 3 & 11 & 30.14  & 111$\times$ \\
+4097 & 7,881 & 25,766.5 & 3 & 12 & 120.95 & 213$\times$ \\
+\hline
+\end{tabular}
+\end{table}

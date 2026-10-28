@@ -1,0 +1,10 @@
+.git
+.gitignore
+*.pptx
+*.docx
+*.pdf
+*.jpg
+*.png
+*.html
+__pycache__/
+.ipynb_checkpoints/
